@@ -182,8 +182,13 @@ describe('block statements', () => {
 
   describe('linkTo block statement', () => {
     test('with text child', () => {
-      expect(compile('<div>{{#linkTo "/destination" "" "some-class"}}linky{{/linkTo}}</div>')).toBe(
-        'props => <div><Link href="/destination" className="some-class">linky</Link></div>;'
+      expect(compile('<div>{{#linkTo "/destination" "" "some-class"}}Linky{{/linkTo}}</div>')).toBe(
+        'props => <div><Link href="/destination" className="some-class">Linky</Link></div>;'
+      )
+    })
+    test('with div child', () => {
+      expect(compile('<div>{{#linkTo "/destination" "" "some-class"}}<div>Linky</div>{{/linkTo}}</div>')).toBe(
+        'props => <div><Link href="/destination" className="some-class"><div>Linky</div></Link></div>;'
       )
     })
   })

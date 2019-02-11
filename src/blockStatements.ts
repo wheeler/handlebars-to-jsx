@@ -51,15 +51,17 @@ export const createLinkStatement = (blockStatement: Glimmer.BlockStatement) => {
   const hrefAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('href'), Babel.stringLiteral(href))
   const classNameAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('className'), Babel.stringLiteral(className))
 
-  const children = createRootChildren(program.body);
-  const textChild = Babel.jsxText(children.value)
+  let children = createRootChildren(program.body);
+  if (children.type === 'StringLiteral') {
+    children = Babel.jsxText(children.value)
+  }
 
   const identifier = Babel.jsxIdentifier('Link');
   // TODO: return elementnode?
   return Babel.jsxElement(
     Babel.jsxOpeningElement(identifier, [hrefAttribute, classNameAttribute], false),
     Babel.jsxClosingElement(identifier),
-    [textChild], // createRootChildren(program.body)
+    [children],
     false
   )
 }

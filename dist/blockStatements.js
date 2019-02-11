@@ -25,16 +25,17 @@ exports.resolveBlockStatement = function (blockStatement) {
 };
 /**
  * Creates a custom linkTo statement
+ *
+ * HBS in
+ * {{#linkTo '/destination' '' 'btn' '' }}
+ *   <i class='zp-icon zp-icon-arrow-back'></i> Back to Giving
+ * {{/linkTo}}
+ *
+ * React out
+ * <Link href='/destination' className='btn'>
+ *   <i class='zp-icon zp-icon-arrow-back'></i> Back to Giving
+ * </Link>
  */
-// HBS
-// {{#linkTo 'javascript:void(0)' '' 'btn back-to-giving' '' }}
-//   <i class='zp-icon zp-icon-arrow-back'></i> Back to Giving
-// {{/linkTo}}
-//
-// React
-// <Link href={javascript:void(0)}>
-//   <i class='zp-icon zp-icon-arrow-back'></i> Back to Giving
-// </Link>
 exports.createLinkStatement = function (blockStatement) {
     var program = blockStatement.program, params = blockStatement.params;
     // console.log(params)
@@ -45,13 +46,13 @@ exports.createLinkStatement = function (blockStatement) {
     var attributesParam = params[4] && params[4].value;
     var hrefAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('href'), Babel.stringLiteral(href));
     var classNameAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('className'), Babel.stringLiteral(className));
-    // this is a mess!
     var children = expressions_1.createRootChildren(program.body);
-    var textChild = Babel.jsxText(children.value);
+    if (children.type === 'StringLiteral') {
+        children = Babel.jsxText(children.value);
+    }
     var identifier = Babel.jsxIdentifier('Link');
     // TODO: return elementnode?
-    return Babel.jsxElement(Babel.jsxOpeningElement(identifier, [hrefAttribute, classNameAttribute], false), Babel.jsxClosingElement(identifier), [textChild], // createRootChildren(program.body)
-    false);
+    return Babel.jsxElement(Babel.jsxOpeningElement(identifier, [hrefAttribute, classNameAttribute], false), Babel.jsxClosingElement(identifier), [children], false);
 };
 /**
  * Creates condition statement
