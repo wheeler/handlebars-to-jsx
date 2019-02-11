@@ -50,12 +50,33 @@ export const resolveStatement = (statement: Glimmer.Statement): Babel.Expression
   }
 }
 
+const getParamValue = (thing, idx) => (thing.params[idx] && thing.params[idx].value)
+
 const handleCustomMustaches = (statement: Glimmer.Statement): Babel.Expression | undefined => {
   switch (statement.path.original) {
+    case 'buttonWithIcon': {
+      const text = getParamValue(statement, 0)
+      let icon = getParamValue(statement, 1)
+      if (icon.length) icon = icon.replace(/zp-icon-? ?/g, '')
+      const className = getParamValue(statement, 2)
+
+
+      const iconAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('icon'), Babel.stringLiteral(icon))
+      const classNameAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('className'), Babel.stringLiteral(className))
+      const children = Babel.jsxText(text)
+    
+      const identifier = Babel.jsxIdentifier('Button');
+      return Babel.jsxElement(
+        Babel.jsxOpeningElement(identifier, [iconAttribute, classNameAttribute], false),
+        Babel.jsxClosingElement(identifier),
+        [children],
+        false
+      )
+    }
     case 'linkTo': {
-      const href = statement.params[0] && statement.params[0].value
-      const text = statement.params[1] && statement.params[1].value
-      const className = statement.params[2] && statement.params[2].value
+      const href = getParamValue(statement, 0)
+      const text = getParamValue(statement, 1)
+      const className = getParamValue(statement, 2)
 
       const hrefAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('href'), Babel.stringLiteral(href))
       const classNameAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('className'), Babel.stringLiteral(className))

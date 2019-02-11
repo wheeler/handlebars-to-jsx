@@ -75,6 +75,20 @@ describe('element values', () => {
       })
     })
   })
+
+  describe('custom elements', () => {
+    test('non-block linkTo', () => {
+      expect(compile('<div>{{linkTo "/destination" "Linky" "some-class"}}</div>')).toBe(
+        'props => <div><Link href="/destination" className="some-class">Linky</Link></div>;'
+      )
+    })
+
+    test('buttonWithIcon', () => {
+      expect(compile('<div>{{ buttonWithIcon "Button Text" "zp-icon zp-icon-x" "cancel-class"}}</div>')).toBe(
+        'props => <div><Button icon="x" className="cancel-class">Button Text</Button></div>;'
+      )
+    })
+  })
 })
 
 describe('component support', () => {
@@ -215,11 +229,6 @@ describe('block statements', () => {
   })
 
   describe('linkTo block statement', () => {
-    test('non-block helper version', () => {
-      expect(compile('<div>{{linkTo "/destination" "Linky" "some-class"}}</div>')).toBe(
-        'props => <div><Link href="/destination" className="some-class">Linky</Link></div>;'
-      )
-    })
     test('with text child', () => {
       expect(compile('<div>{{#linkTo "/destination" "" "some-class"}}Linky{{/linkTo}}</div>')).toBe(
         'props => <div><Link href="/destination" className="some-class">Linky</Link></div>;'

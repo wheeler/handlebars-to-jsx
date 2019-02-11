@@ -42,12 +42,25 @@ exports.resolveStatement = function (statement) {
         }
     }
 };
+var getParamValue = function (thing, idx) { return (thing.params[idx] && thing.params[idx].value); };
 var handleCustomMustaches = function (statement) {
     switch (statement.path.original) {
+        case 'buttonWithIcon': {
+            var text = getParamValue(statement, 0);
+            var icon = getParamValue(statement, 1);
+            if (icon.length)
+                icon = icon.replace(/zp-icon-? ?/g, '');
+            var className = getParamValue(statement, 2);
+            var iconAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('icon'), Babel.stringLiteral(icon));
+            var classNameAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('className'), Babel.stringLiteral(className));
+            var children = Babel.jsxText(text);
+            var identifier = Babel.jsxIdentifier('Button');
+            return Babel.jsxElement(Babel.jsxOpeningElement(identifier, [iconAttribute, classNameAttribute], false), Babel.jsxClosingElement(identifier), [children], false);
+        }
         case 'linkTo': {
-            var href = statement.params[0] && statement.params[0].value;
-            var text = statement.params[1] && statement.params[1].value;
-            var className = statement.params[2] && statement.params[2].value;
+            var href = getParamValue(statement, 0);
+            var text = getParamValue(statement, 1);
+            var className = getParamValue(statement, 2);
             var hrefAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('href'), Babel.stringLiteral(href));
             var classNameAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('className'), Babel.stringLiteral(className));
             var children = Babel.jsxText(text);
