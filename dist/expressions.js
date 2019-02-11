@@ -18,7 +18,13 @@ exports.resolveStatement = function (statement) {
             return Babel.stringLiteral(statement.chars);
         }
         case 'MustacheStatement': {
-            return exports.resolveExpression(statement.path);
+            var resolvedPath = exports.resolveExpression(statement.path);
+            // If there are params output a call expression with resolved params
+            if (statement.params.length) {
+                var resolvedParams = statement.params.map(function (p) { return exports.resolveExpression(p); });
+                return Babel.callExpression(resolvedPath, resolvedParams);
+            }
+            return resolvedPath;
         }
         case 'BlockStatement': {
             return blockStatements_1.resolveBlockStatement(statement);

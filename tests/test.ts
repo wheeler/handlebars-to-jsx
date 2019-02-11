@@ -41,6 +41,40 @@ describe('element values', () => {
       recompile('props => <div>Lorem {props.ipsum} dolor sit amet</div>')
     )
   })
+
+  describe('with params', () => {
+    describe('single string param', () => {
+      test('becomes a call expression', () => {
+        expect(compile('<div>{{someHelper "foo"}}</div>')).toBe(
+          'props => <div>{props.someHelper("foo")}</div>;'
+        )
+      })
+    })
+
+    describe('single number param', () => {
+      test('becomes a call expression', () => {
+        expect(compile('<div>{{someHelper 5}}</div>')).toBe(
+          'props => <div>{props.someHelper(5)}</div>;'
+        )
+      })
+    })
+
+    describe('single path param', () => {
+      test('becomes a call expression', () => {
+        expect(compile('<div>{{someHelper foo}}</div>')).toBe(
+          'props => <div>{props.someHelper(props.foo)}</div>;'
+        )
+      })
+    })
+
+    describe('multiple params', () => {
+      test('becomes a call expression', () => {
+        expect(compile('<div>{{someHelper foo "bar" 5 baz}}</div>')).toBe(
+          'props => <div>{props.someHelper(props.foo, "bar", 5, props.baz)}</div>;'
+        )
+      })
+    })
+  })
 })
 
 describe('component support', () => {

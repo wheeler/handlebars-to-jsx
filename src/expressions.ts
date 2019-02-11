@@ -20,7 +20,15 @@ export const resolveStatement = (statement: Glimmer.Statement): Babel.Expression
     }
 
     case 'MustacheStatement': {
-      return resolveExpression(statement.path)
+      const resolvedPath = resolveExpression(statement.path)
+      
+      // If there are params output a call expression with resolved params
+      if (statement.params.length) {
+        const resolvedParams = statement.params.map((p) => resolveExpression(p))
+        return Babel.callExpression(resolvedPath, resolvedParams)
+      }
+
+      return resolvedPath
     }
 
     case 'BlockStatement': {
