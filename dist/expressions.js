@@ -18,6 +18,10 @@ exports.resolveStatement = function (statement) {
             return Babel.stringLiteral(statement.chars);
         }
         case 'MustacheStatement': {
+            // Handle Custom Mustaches
+            var resolvedCustom = handleCustomMustaches(statement);
+            if (resolvedCustom)
+                return resolvedCustom;
             var resolvedPath = exports.resolveExpression(statement.path);
             // If there are params output a call expression with resolved params
             if (statement.params.length) {
@@ -35,6 +39,23 @@ exports.resolveStatement = function (statement) {
         }
         default: {
             throw new Error("Unexpected expression \"" + statement.type + "\"");
+        }
+    }
+};
+var handleCustomMustaches = function (statement) {
+    switch (statement.path.original) {
+        case 'linkTo': {
+            var href = statement.params[0] && statement.params[0].value;
+            var text = statement.params[1] && statement.params[1].value;
+            var className = statement.params[2] && statement.params[2].value;
+            var hrefAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('href'), Babel.stringLiteral(href));
+            var classNameAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('className'), Babel.stringLiteral(className));
+            var children = Babel.jsxText(text);
+            var identifier = Babel.jsxIdentifier('Link');
+            return Babel.jsxElement(Babel.jsxOpeningElement(identifier, [hrefAttribute, classNameAttribute], false), Babel.jsxClosingElement(identifier), [children], false);
+        }
+        default: {
+            return undefined;
         }
     }
 };

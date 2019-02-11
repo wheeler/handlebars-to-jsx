@@ -20,6 +20,10 @@ export const resolveStatement = (statement: Glimmer.Statement): Babel.Expression
     }
 
     case 'MustacheStatement': {
+      // Handle Custom Mustaches
+      const resolvedCustom = handleCustomMustaches(statement);
+      if (resolvedCustom) return resolvedCustom;
+
       const resolvedPath = resolveExpression(statement.path)
       
       // If there are params output a call expression with resolved params
@@ -42,6 +46,31 @@ export const resolveStatement = (statement: Glimmer.Statement): Babel.Expression
 
     default: {
       throw new Error(`Unexpected expression "${statement.type}"`)
+    }
+  }
+}
+
+const handleCustomMustaches = (statement: Glimmer.Statement): Babel.Expression | undefined => {
+  switch (statement.path.original) {
+    case 'linkTo': {
+      const href = statement.params[0] && statement.params[0].value
+      const text = statement.params[1] && statement.params[1].value
+      const className = statement.params[2] && statement.params[2].value
+
+      const hrefAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('href'), Babel.stringLiteral(href))
+      const classNameAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('className'), Babel.stringLiteral(className))
+      const children = Babel.jsxText(text)
+    
+      const identifier = Babel.jsxIdentifier('Link');
+      return Babel.jsxElement(
+        Babel.jsxOpeningElement(identifier, [hrefAttribute, classNameAttribute], false),
+        Babel.jsxClosingElement(identifier),
+        [children],
+        false
+      )
+    }
+    default: {
+      return undefined;
     }
   }
 }
