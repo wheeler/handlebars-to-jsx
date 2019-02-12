@@ -56,6 +56,7 @@ export const resolveStatement = (statement: Glimmer.Statement): Babel.Expression
 
 const getParamValue = (thing, idx) => (thing.params[idx] && thing.params[idx].value)
 
+// TODO this is crappy - can it be replaced with something built in?
 const resolveJsxAttribute = (expression) => {
   const resolvedExpression = resolveExpression(expression)
   switch (resolvedExpression.type) {
@@ -68,6 +69,7 @@ const resolveJsxAttribute = (expression) => {
   }
 }
 
+// TODO this is crappy - can it be replaced with something built in?
 const resolveJsxElement = (expression) => {
   const resolvedExpression = resolveExpression(expression)
   switch (resolvedExpression.type) {
@@ -157,7 +159,7 @@ const handleCustomMustaches = (statement: Glimmer.MustacheStatement | Glimmer.Bl
     children = createRootChildren(statement.program.body);
     if (children.type === 'StringLiteral') {
       children = Babel.jsxText((<Babel.StringLiteral>children).value)
-    } else if (children.type === 'MemberExpression') {
+    } else if (children.type === 'MemberExpression' || children.type === 'CallExpression') {
       children = Babel.jsxExpressionContainer(children)
     }
   }

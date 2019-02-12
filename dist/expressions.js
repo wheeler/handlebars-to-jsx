@@ -47,6 +47,7 @@ exports.resolveStatement = function (statement) {
     }
 };
 var getParamValue = function (thing, idx) { return (thing.params[idx] && thing.params[idx].value); };
+// TODO this is crappy - can it be replaced with something built in?
 var resolveJsxAttribute = function (expression) {
     var resolvedExpression = exports.resolveExpression(expression);
     switch (resolvedExpression.type) {
@@ -58,6 +59,7 @@ var resolveJsxAttribute = function (expression) {
         }
     }
 };
+// TODO this is crappy - can it be replaced with something built in?
 var resolveJsxElement = function (expression) {
     var resolvedExpression = exports.resolveExpression(expression);
     switch (resolvedExpression.type) {
@@ -144,7 +146,7 @@ var handleCustomMustaches = function (statement) {
         if (children.type === 'StringLiteral') {
             children = Babel.jsxText(children.value);
         }
-        else if (children.type === 'MemberExpression') {
+        else if (children.type === 'MemberExpression' || children.type === 'CallExpression') {
             children = Babel.jsxExpressionContainer(children);
         }
     }
