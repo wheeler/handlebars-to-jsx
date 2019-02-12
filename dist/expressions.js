@@ -101,6 +101,14 @@ var hbsToJsxMap = {
             { type: 'children' },
             { type: 'attribute', identifier: 'className' },
         ]
+    },
+    externalLinkTo: {
+        identifier: 'LinkExternal',
+        paramMappings: [
+            { type: 'attribute', identifier: 'href' },
+            { type: 'children' },
+            { type: 'attribute', identifier: 'className' },
+        ]
     }
 };
 var handleCustomMustaches = function (statement) {
