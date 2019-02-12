@@ -83,6 +83,12 @@ describe('element values', () => {
       )
     })
 
+    test('non-block linkTo with var params', () => {
+      expect(compile('<div>{{linkTo linkHref linkText linkClass}}</div>')).toBe(
+        'props => <div><Link href={props.linkHref} className={props.linkClass}>{props.linkText}</Link></div>;'
+      )
+    })
+
     test('buttonWithIcon', () => {
       expect(compile('<div>{{ buttonWithIcon "Button Text" "zp-icon zp-icon-x" "cancel-class"}}</div>')).toBe(
         'props => <div><Button icon="x" className="cancel-class">Button Text</Button></div>;'
@@ -189,6 +195,12 @@ describe('block statements', () => {
       )
     })
 
+    test('should convert condition if-then with stache child', () => {
+      expect(compile('<div>{{#if variable}}{{anotherVariable}}{{/if}}</div>')).toBe(
+        recompile('props => <div>{Boolean(props.variable) && props.anotherVariable}</div>;')
+      )
+    })
+
     test('should convert condition if-then-else ', () => {
       expect(compile('<div>{{#if variable}}<div/>{{else}}<span/>{{/if}}</div>')).toBe(
         recompile('props => <div>{Boolean(props.variable) ? <div /> : <span />}</div>;')
@@ -237,6 +249,11 @@ describe('block statements', () => {
     test('with div child', () => {
       expect(compile('<div>{{#linkTo "/destination" "" "some-class"}}<div>Linky</div>{{/linkTo}}</div>')).toBe(
         'props => <div><Link href="/destination" className="some-class"><div>Linky</div></Link></div>;'
+      )
+    })
+    test('with stache child', () => {
+      expect(compile('<div>{{#linkTo "/destination" "" "some-class"}}{{linkBody}}{{/linkTo}}</div>')).toBe(
+        'props => <div><Link href="/destination" className="some-class">{props.linkBody}</Link></div>;'
       )
     })
   })

@@ -38,8 +38,6 @@ exports.resolveBlockStatement = function (blockStatement) {
  */
 exports.createLinkStatement = function (blockStatement) {
     var program = blockStatement.program, params = blockStatement.params;
-    // console.log(params)
-    // console.log(program.body)
     var href = params[0] && params[0].value;
     var text = params[1] && params[1].value;
     var className = params[2] && params[2].value;
@@ -49,6 +47,9 @@ exports.createLinkStatement = function (blockStatement) {
     var children = expressions_1.createRootChildren(program.body);
     if (children.type === 'StringLiteral') {
         children = Babel.jsxText(children.value);
+    }
+    else if (children.type === 'MemberExpression') {
+        children = Babel.jsxExpressionContainer(children);
     }
     var identifier = Babel.jsxIdentifier('Link');
     // TODO: return elementnode?

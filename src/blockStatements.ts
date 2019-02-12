@@ -54,6 +54,8 @@ export const createLinkStatement = (blockStatement: Glimmer.BlockStatement) => {
   let children = createRootChildren(program.body);
   if (children.type === 'StringLiteral') {
     children = Babel.jsxText(children.value)
+  } else if (children.type === 'MemberExpression') {
+    children = Babel.jsxExpressionContainer(children)
   }
 
   const identifier = Babel.jsxIdentifier('Link');

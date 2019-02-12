@@ -52,6 +52,33 @@ export const resolveStatement = (statement: Glimmer.Statement): Babel.Expression
 
 const getParamValue = (thing, idx) => (thing.params[idx] && thing.params[idx].value)
 
+const resolveJsxAttribute = (expression) => {
+  const resolvedExpression = resolveExpression(expression)
+  switch (resolvedExpression.type) {
+    case "MemberExpression": {
+      return Babel.jsxExpressionContainer(resolvedExpression)
+    }
+    default: {
+      return resolvedExpression
+    }
+  }
+}
+
+const resolveJsxElement = (expression) => {
+  const resolvedExpression = resolveExpression(expression)
+  switch (resolvedExpression.type) {
+    case "MemberExpression": {
+      return Babel.jsxExpressionContainer(resolvedExpression)
+    }
+    case "StringLiteral": {
+      return Babel.jsxText(resolvedExpression.value)
+    }
+    default: {
+      return resolvedExpression
+    }
+  }
+}
+
 const handleCustomMustaches = (statement: Glimmer.Statement): Babel.Expression | undefined => {
   switch (statement.path.original) {
     case 'buttonWithIcon': {
@@ -74,13 +101,14 @@ const handleCustomMustaches = (statement: Glimmer.Statement): Babel.Expression |
       )
     }
     case 'linkTo': {
-      const href = getParamValue(statement, 0)
-      const text = getParamValue(statement, 1)
-      const className = getParamValue(statement, 2)
-
-      const hrefAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('href'), Babel.stringLiteral(href))
-      const classNameAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('className'), Babel.stringLiteral(className))
-      const children = Babel.jsxText(text)
+      const href = statement.params[0]
+      const text = statement.params[1]
+      const className = statement.params[2]
+      
+      const hrefAttribute = href && Babel.jsxAttribute(Babel.jsxIdentifier('href'), resolveJsxAttribute(href))
+      const classNameAttribute = className && Babel.jsxAttribute(Babel.jsxIdentifier('className'), resolveJsxAttribute(className))
+      
+      const children = text && resolveJsxElement(text)
     
       const identifier = Babel.jsxIdentifier('Link');
       return Babel.jsxElement(

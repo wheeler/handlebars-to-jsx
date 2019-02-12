@@ -43,6 +43,31 @@ exports.resolveStatement = function (statement) {
     }
 };
 var getParamValue = function (thing, idx) { return (thing.params[idx] && thing.params[idx].value); };
+var resolveJsxAttribute = function (expression) {
+    var resolvedExpression = exports.resolveExpression(expression);
+    switch (resolvedExpression.type) {
+        case "MemberExpression": {
+            return Babel.jsxExpressionContainer(resolvedExpression);
+        }
+        default: {
+            return resolvedExpression;
+        }
+    }
+};
+var resolveJsxElement = function (expression) {
+    var resolvedExpression = exports.resolveExpression(expression);
+    switch (resolvedExpression.type) {
+        case "MemberExpression": {
+            return Babel.jsxExpressionContainer(resolvedExpression);
+        }
+        case "StringLiteral": {
+            return Babel.jsxText(resolvedExpression.value);
+        }
+        default: {
+            return resolvedExpression;
+        }
+    }
+};
 var handleCustomMustaches = function (statement) {
     switch (statement.path.original) {
         case 'buttonWithIcon': {
@@ -58,12 +83,12 @@ var handleCustomMustaches = function (statement) {
             return Babel.jsxElement(Babel.jsxOpeningElement(identifier, [iconAttribute, classNameAttribute], false), Babel.jsxClosingElement(identifier), [children], false);
         }
         case 'linkTo': {
-            var href = getParamValue(statement, 0);
-            var text = getParamValue(statement, 1);
-            var className = getParamValue(statement, 2);
-            var hrefAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('href'), Babel.stringLiteral(href));
-            var classNameAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('className'), Babel.stringLiteral(className));
-            var children = Babel.jsxText(text);
+            var href = statement.params[0];
+            var text = statement.params[1];
+            var className = statement.params[2];
+            var hrefAttribute = href && Babel.jsxAttribute(Babel.jsxIdentifier('href'), resolveJsxAttribute(href));
+            var classNameAttribute = className && Babel.jsxAttribute(Babel.jsxIdentifier('className'), resolveJsxAttribute(className));
+            var children = text && resolveJsxElement(text);
             var identifier = Babel.jsxIdentifier('Link');
             return Babel.jsxElement(Babel.jsxOpeningElement(identifier, [hrefAttribute, classNameAttribute], false), Babel.jsxClosingElement(identifier), [children], false);
         }
