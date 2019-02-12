@@ -35,7 +35,11 @@ export const resolveStatement = (statement: Glimmer.Statement): Babel.Expression
       return resolvedPath
     }
 
-    case 'BlockStatement': {
+    case 'BlockStatement': {      
+      // Handle Custom Mustaches
+      const resolvedCustom = handleCustomMustaches(statement);
+      if (resolvedCustom) return resolvedCustom;
+
       return resolveBlockStatement(statement)
     }
 
@@ -79,50 +83,86 @@ const resolveJsxElement = (expression) => {
   }
 }
 
-const handleCustomMustaches = (statement: Glimmer.Statement): Babel.Expression | undefined => {
-  switch (statement.path.original) {
-    case 'buttonWithIcon': {
-      const text = getParamValue(statement, 0)
-      let icon = getParamValue(statement, 1)
-      if (icon.length) icon = icon.replace(/zp-icon-? ?/g, '')
-      const className = getParamValue(statement, 2)
+/**
+ * Example:
+ * 
+ * HBS in
+ * {{#linkTo '/destination' '' 'btn' '' }}
+ *   <i class='zp-icon zp-icon-arrow-back'></i> Back to Giving
+ * {{/linkTo}}
+ *
+ * React out
+ * <Link href='/destination' className='btn'>
+ *   <i class='zp-icon zp-icon-arrow-back'></i> Back to Giving
+ * </Link>
+ */
 
-
-      const iconAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('icon'), Babel.stringLiteral(icon))
-      const classNameAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('className'), Babel.stringLiteral(className))
-      const children = Babel.jsxText(text)
-    
-      const identifier = Babel.jsxIdentifier('Button');
-      return Babel.jsxElement(
-        Babel.jsxOpeningElement(identifier, [iconAttribute, classNameAttribute], false),
-        Babel.jsxClosingElement(identifier),
-        [children],
-        false
-      )
-    }
-    case 'linkTo': {
-      const href = statement.params[0]
-      const text = statement.params[1]
-      const className = statement.params[2]
-      
-      const hrefAttribute = href && Babel.jsxAttribute(Babel.jsxIdentifier('href'), resolveJsxAttribute(href))
-      const classNameAttribute = className && Babel.jsxAttribute(Babel.jsxIdentifier('className'), resolveJsxAttribute(className))
-      
-      const children = text && resolveJsxElement(text)
-    
-      const identifier = Babel.jsxIdentifier('Link');
-      return Babel.jsxElement(
-        Babel.jsxOpeningElement(identifier, [hrefAttribute, classNameAttribute], false),
-        Babel.jsxClosingElement(identifier),
-        [children],
-        false
-      )
-    }
-    default: {
-      return undefined;
-    }
+const hbsToJsxMap = {
+  buttonWithIcon: {
+    identifier: 'Button',
+    paramMappings: [
+      { type: 'children' },
+      { type: 'attribute', identifier: 'icon', preprocessor: p => { p.value = p.value.replace(/zp-icon-? ?/g, '') } },
+      { type: 'attribute', identifier: 'className' },
+    ]
+  },
+  linkTo: {
+    identifier: 'Link',
+    paramMappings: [
+      { type: 'attribute', identifier: 'href' },
+      { type: 'children' },
+      { type: 'attribute', identifier: 'className' },
+    ]
   }
 }
+
+const handleCustomMustaches = (statement: Glimmer.MustacheStatement | Glimmer.BlockStatement): Babel.JSXElement | undefined => {
+  const hbsIdentifier = statement.path && statement.path.original;
+  const hbsTranslation = hbsToJsxMap[hbsIdentifier];
+  if (!hbsTranslation) return undefined;
+
+  const { params } = statement;
+  let children;
+  const attributes: Babel.JSXAttribute[] = [];
+
+  hbsTranslation.paramMappings.forEach((param, i) => {
+    switch (param.type) {
+      case 'children': {
+        if (params[i]) {
+          children = resolveJsxElement(params[i])
+        }
+        break;
+      }
+      case 'attribute': {
+        if (params[i]) {
+          if (param.preprocessor) param.preprocessor(params[i])
+          const resolvedValue = resolveJsxAttribute(params[i])
+          attributes.push(Babel.jsxAttribute(Babel.jsxIdentifier(param.identifier), resolvedValue))
+        }
+        break;
+      }
+    }
+  })
+
+  // if there's a block body it becomes the children
+  if (statement.type === 'BlockStatement' && statement.program) {
+    children = createRootChildren(statement.program.body);
+    if (children.type === 'StringLiteral') {
+      children = Babel.jsxText((<Babel.StringLiteral>children).value)
+    } else if (children.type === 'MemberExpression') {
+      children = Babel.jsxExpressionContainer(children)
+    }
+  }
+
+  const identifier = Babel.jsxIdentifier(hbsTranslation.identifier);
+  return Babel.jsxElement(
+    Babel.jsxOpeningElement(identifier, attributes, false),
+    Babel.jsxClosingElement(identifier),
+    [children],
+    false
+  )
+}
+
 
 /**
  * Converts the Handlebars node to JSX-children-compatible child element.
@@ -163,7 +203,6 @@ export const resolveElementChild = (
     }
   }
 }
-
 /**
  * Converts Hbs expression to Babel expression
  */

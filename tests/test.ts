@@ -256,5 +256,10 @@ describe('block statements', () => {
         'props => <div><Link href="/destination" className="some-class">{props.linkBody}</Link></div>;'
       )
     })
+    test('with var attribute child', () => {
+      expect(compile('<div>{{#linkTo linkHref "" "some-class"}}{{linkBody}}{{/linkTo}}</div>')).toBe(
+        'props => <div><Link href={props.linkHref} className="some-class">{props.linkBody}</Link></div>;'
+      )
+    })
   })
 })

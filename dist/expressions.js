@@ -31,6 +31,10 @@ exports.resolveStatement = function (statement) {
             return resolvedPath;
         }
         case 'BlockStatement': {
+            // Handle Custom Mustaches
+            var resolvedCustom = handleCustomMustaches(statement);
+            if (resolvedCustom)
+                return resolvedCustom;
             return blockStatements_1.resolveBlockStatement(statement);
         }
         case 'MustacheCommentStatement':
@@ -68,34 +72,76 @@ var resolveJsxElement = function (expression) {
         }
     }
 };
+/**
+ * Example:
+ *
+ * HBS in
+ * {{#linkTo '/destination' '' 'btn' '' }}
+ *   <i class='zp-icon zp-icon-arrow-back'></i> Back to Giving
+ * {{/linkTo}}
+ *
+ * React out
+ * <Link href='/destination' className='btn'>
+ *   <i class='zp-icon zp-icon-arrow-back'></i> Back to Giving
+ * </Link>
+ */
+var hbsToJsxMap = {
+    buttonWithIcon: {
+        identifier: 'Button',
+        paramMappings: [
+            { type: 'children' },
+            { type: 'attribute', identifier: 'icon', preprocessor: function (p) { p.value = p.value.replace(/zp-icon-? ?/g, ''); } },
+            { type: 'attribute', identifier: 'className' },
+        ]
+    },
+    linkTo: {
+        identifier: 'Link',
+        paramMappings: [
+            { type: 'attribute', identifier: 'href' },
+            { type: 'children' },
+            { type: 'attribute', identifier: 'className' },
+        ]
+    }
+};
 var handleCustomMustaches = function (statement) {
-    switch (statement.path.original) {
-        case 'buttonWithIcon': {
-            var text = getParamValue(statement, 0);
-            var icon = getParamValue(statement, 1);
-            if (icon.length)
-                icon = icon.replace(/zp-icon-? ?/g, '');
-            var className = getParamValue(statement, 2);
-            var iconAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('icon'), Babel.stringLiteral(icon));
-            var classNameAttribute = Babel.jsxAttribute(Babel.jsxIdentifier('className'), Babel.stringLiteral(className));
-            var children = Babel.jsxText(text);
-            var identifier = Babel.jsxIdentifier('Button');
-            return Babel.jsxElement(Babel.jsxOpeningElement(identifier, [iconAttribute, classNameAttribute], false), Babel.jsxClosingElement(identifier), [children], false);
+    var hbsIdentifier = statement.path && statement.path.original;
+    var hbsTranslation = hbsToJsxMap[hbsIdentifier];
+    if (!hbsTranslation)
+        return undefined;
+    var params = statement.params;
+    var children;
+    var attributes = [];
+    hbsTranslation.paramMappings.forEach(function (param, i) {
+        switch (param.type) {
+            case 'children': {
+                if (params[i]) {
+                    children = resolveJsxElement(params[i]);
+                }
+                break;
+            }
+            case 'attribute': {
+                if (params[i]) {
+                    if (param.preprocessor)
+                        param.preprocessor(params[i]);
+                    var resolvedValue = resolveJsxAttribute(params[i]);
+                    attributes.push(Babel.jsxAttribute(Babel.jsxIdentifier(param.identifier), resolvedValue));
+                }
+                break;
+            }
         }
-        case 'linkTo': {
-            var href = statement.params[0];
-            var text = statement.params[1];
-            var className = statement.params[2];
-            var hrefAttribute = href && Babel.jsxAttribute(Babel.jsxIdentifier('href'), resolveJsxAttribute(href));
-            var classNameAttribute = className && Babel.jsxAttribute(Babel.jsxIdentifier('className'), resolveJsxAttribute(className));
-            var children = text && resolveJsxElement(text);
-            var identifier = Babel.jsxIdentifier('Link');
-            return Babel.jsxElement(Babel.jsxOpeningElement(identifier, [hrefAttribute, classNameAttribute], false), Babel.jsxClosingElement(identifier), [children], false);
+    });
+    // if there's a block body it becomes the children
+    if (statement.type === 'BlockStatement' && statement.program) {
+        children = exports.createRootChildren(statement.program.body);
+        if (children.type === 'StringLiteral') {
+            children = Babel.jsxText(children.value);
         }
-        default: {
-            return undefined;
+        else if (children.type === 'MemberExpression') {
+            children = Babel.jsxExpressionContainer(children);
         }
     }
+    var identifier = Babel.jsxIdentifier(hbsTranslation.identifier);
+    return Babel.jsxElement(Babel.jsxOpeningElement(identifier, attributes, false), Babel.jsxClosingElement(identifier), [children], false);
 };
 /**
  * Converts the Handlebars node to JSX-children-compatible child element.
