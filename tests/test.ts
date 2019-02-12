@@ -251,6 +251,11 @@ describe('block statements', () => {
         'props => <div><Link href="/destination" className="some-class"><div>Linky</div></Link></div>;'
       )
     })
+    test('with sibling div children', () => {
+      expect(compile('<div>{{#linkTo "/destination" "" "some-class"}}<div>Linky</div><div>Dinky</div>{{/linkTo}}</div>')).toBe(
+        'props => <div><Link href="/destination" className="some-class"><div>Linky</div><div>Dinky</div></Link></div>;'
+      )
+    })
     test('with stache child', () => {
       expect(compile('<div>{{#linkTo "/destination" "" "some-class"}}{{linkBody}}{{/linkTo}}</div>')).toBe(
         'props => <div><Link href="/destination" className="some-class">{props.linkBody}</Link></div>;'

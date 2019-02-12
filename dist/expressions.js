@@ -125,7 +125,7 @@ var handleCustomMustaches = function (statement) {
         switch (param.type) {
             case 'children': {
                 if (params[i]) {
-                    children = resolveJsxElement(params[i]);
+                    children = [resolveJsxElement(params[i])];
                 }
                 break;
             }
@@ -142,16 +142,24 @@ var handleCustomMustaches = function (statement) {
     });
     // if there's a block body it becomes the children
     if (statement.type === 'BlockStatement' && statement.program) {
-        children = exports.createRootChildren(statement.program.body);
-        if (children.type === 'StringLiteral') {
-            children = Babel.jsxText(children.value);
-        }
-        else if (children.type === 'MemberExpression' || children.type === 'CallExpression') {
-            children = Babel.jsxExpressionContainer(children);
-        }
+        children = exports.createChildren(statement.program.body);
+        children = children.map(function (child) {
+            switch (child.type) {
+                case 'StringLiteral': {
+                    return Babel.jsxText(child.value);
+                }
+                case 'MemberExpression':
+                case 'CallExpression': {
+                    return Babel.jsxExpressionContainer(child);
+                }
+                default: {
+                    return child;
+                }
+            }
+        });
     }
     var identifier = Babel.jsxIdentifier(hbsTranslation.identifier);
-    return Babel.jsxElement(Babel.jsxOpeningElement(identifier, attributes, false), Babel.jsxClosingElement(identifier), [children], false);
+    return Babel.jsxElement(Babel.jsxOpeningElement(identifier, attributes, false), Babel.jsxClosingElement(identifier), children, false);
 };
 /**
  * Converts the Handlebars node to JSX-children-compatible child element.

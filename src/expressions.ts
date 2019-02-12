@@ -139,7 +139,7 @@ const handleCustomMustaches = (statement: Glimmer.MustacheStatement | Glimmer.Bl
     switch (param.type) {
       case 'children': {
         if (params[i]) {
-          children = resolveJsxElement(params[i])
+          children = [resolveJsxElement(params[i])]
         }
         break;
       }
@@ -156,19 +156,28 @@ const handleCustomMustaches = (statement: Glimmer.MustacheStatement | Glimmer.Bl
 
   // if there's a block body it becomes the children
   if (statement.type === 'BlockStatement' && statement.program) {
-    children = createRootChildren(statement.program.body);
-    if (children.type === 'StringLiteral') {
-      children = Babel.jsxText((<Babel.StringLiteral>children).value)
-    } else if (children.type === 'MemberExpression' || children.type === 'CallExpression') {
-      children = Babel.jsxExpressionContainer(children)
-    }
+    children = createChildren(statement.program.body);
+    children = children.map((child) => {
+      switch (child.type) {
+        case 'StringLiteral': {
+          return Babel.jsxText((<Babel.StringLiteral>child).value)
+        }
+        case 'MemberExpression':
+        case 'CallExpression': {
+          return Babel.jsxExpressionContainer(child)
+        }
+        default: {
+          return child;
+        }
+      }
+    });
   }
 
   const identifier = Babel.jsxIdentifier(hbsTranslation.identifier);
   return Babel.jsxElement(
     Babel.jsxOpeningElement(identifier, attributes, false),
     Babel.jsxClosingElement(identifier),
-    [children],
+    children,
     false
   )
 }
