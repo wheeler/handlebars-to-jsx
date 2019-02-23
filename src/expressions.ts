@@ -20,10 +20,26 @@ export const resolveStatement = (statement: Glimmer.Statement): Babel.Expression
     }
 
     case 'MustacheStatement': {
-      return resolveExpression(statement.path)
+      // Handle Custom Mustaches
+      const resolvedCustom = handleCustomMustaches(statement);
+      if (resolvedCustom) return resolvedCustom;
+
+      const resolvedPath = resolveExpression(statement.path)
+      
+      // If there are params output a call expression with resolved params
+      if (statement.params.length) {
+        const resolvedParams = statement.params.map((p) => resolveExpression(p))
+        return Babel.callExpression(resolvedPath, resolvedParams)
+      }
+
+      return resolvedPath
     }
 
-    case 'BlockStatement': {
+    case 'BlockStatement': {      
+      // Handle Custom Mustaches
+      const resolvedCustom = handleCustomMustaches(statement);
+      if (resolvedCustom) return resolvedCustom;
+
       return resolveBlockStatement(statement)
     }
 
@@ -37,6 +53,135 @@ export const resolveStatement = (statement: Glimmer.Statement): Babel.Expression
     }
   }
 }
+
+const getParamValue = (thing, idx) => (thing.params[idx] && thing.params[idx].value)
+
+// TODO this is crappy - can it be replaced with something built in?
+const resolveJsxAttribute = (expression) => {
+  const resolvedExpression = resolveExpression(expression)
+  switch (resolvedExpression.type) {
+    case "MemberExpression": {
+      return Babel.jsxExpressionContainer(resolvedExpression)
+    }
+    default: {
+      return resolvedExpression
+    }
+  }
+}
+
+// TODO this is crappy - can it be replaced with something built in?
+const resolveJsxElement = (expression) => {
+  const resolvedExpression = resolveExpression(expression)
+  switch (resolvedExpression.type) {
+    case "MemberExpression": {
+      return Babel.jsxExpressionContainer(resolvedExpression)
+    }
+    case "StringLiteral": {
+      return Babel.jsxText(resolvedExpression.value)
+    }
+    default: {
+      return resolvedExpression
+    }
+  }
+}
+
+/**
+ * Example:
+ * 
+ * HBS in
+ * {{#linkTo '/destination' '' 'btn' '' }}
+ *   <i class='zp-icon zp-icon-arrow-back'></i> Back to Giving
+ * {{/linkTo}}
+ *
+ * React out
+ * <Link href='/destination' className='btn'>
+ *   <i class='zp-icon zp-icon-arrow-back'></i> Back to Giving
+ * </Link>
+ */
+
+const hbsToJsxMap = {
+  buttonWithIcon: {
+    identifier: 'Button',
+    paramMappings: [
+      { type: 'children' },
+      { type: 'attribute', identifier: 'icon', preprocessor: p => { p.value = p.value.replace(/zp-icon-? ?/g, '') } },
+      { type: 'attribute', identifier: 'className' },
+    ]
+  },
+  linkTo: {
+    identifier: 'Link',
+    paramMappings: [
+      { type: 'attribute', identifier: 'href' },
+      { type: 'children' },
+      { type: 'attribute', identifier: 'className' },
+    ]
+  },
+  externalLinkTo: {
+    identifier: 'LinkExternal',
+    paramMappings: [
+      { type: 'attribute', identifier: 'href' },
+      { type: 'children' },
+      { type: 'attribute', identifier: 'className' },
+    ]
+  },
+}
+
+const handleCustomMustaches = (statement: Glimmer.MustacheStatement | Glimmer.BlockStatement): Babel.JSXElement | undefined => {
+  const hbsIdentifier = statement.path && statement.path.original;
+  const hbsTranslation = hbsToJsxMap[hbsIdentifier];
+  if (!hbsTranslation) return undefined;
+
+  const { params } = statement;
+  let children;
+  const attributes: Babel.JSXAttribute[] = [];
+
+  hbsTranslation.paramMappings.forEach((param, i) => {
+    switch (param.type) {
+      case 'children': {
+        if (params[i]) {
+          children = [resolveJsxElement(params[i])]
+        }
+        break;
+      }
+      case 'attribute': {
+        if (params[i]) {
+          if (param.preprocessor) param.preprocessor(params[i])
+          const resolvedValue = resolveJsxAttribute(params[i])
+          attributes.push(Babel.jsxAttribute(Babel.jsxIdentifier(param.identifier), resolvedValue))
+        }
+        break;
+      }
+    }
+  })
+
+  // if there's a block body it becomes the children
+  if (statement.type === 'BlockStatement' && statement.program) {
+    children = createChildren(statement.program.body);
+    children = children.map((child) => {
+      switch (child.type) {
+        case 'StringLiteral': {
+          return Babel.jsxText((<Babel.StringLiteral>child).value)
+        }
+        case 'MemberExpression':
+        case 'CallExpression': {
+          return Babel.jsxExpressionContainer(child)
+        }
+        default: {
+          return child;
+        }
+      }
+    });
+  }
+
+  const identifier = Babel.jsxIdentifier(hbsTranslation.identifier);
+  return Babel.jsxElement(
+    Babel.jsxOpeningElement(identifier, attributes, false),
+    Babel.jsxClosingElement(identifier),
+    children,
+    false
+  )
+}
+
 
 /**
  * Converts the Handlebars node to JSX-children-compatible child element.
@@ -62,11 +207,21 @@ export const resolveElementChild = (
 
     // If it expression, create a expression container
     default: {
-      return Babel.jsxExpressionContainer(resolveStatement(statement))
+      const resolved = resolveStatement(statement)
+      switch (resolved.type) {
+        // Return if it is resolved to JSX
+        case 'JSXText':
+        case 'JSXElement':
+        case 'JSXExpressionContainer': {
+          return resolved;
+        }
+        default: {
+          return Babel.jsxExpressionContainer(resolved)
+        }
+      }
     }
   }
 }
-
 /**
  * Converts Hbs expression to Babel expression
  */

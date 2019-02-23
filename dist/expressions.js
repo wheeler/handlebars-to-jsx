@@ -18,9 +18,23 @@ exports.resolveStatement = function (statement) {
             return Babel.stringLiteral(statement.chars);
         }
         case 'MustacheStatement': {
-            return exports.resolveExpression(statement.path);
+            // Handle Custom Mustaches
+            var resolvedCustom = handleCustomMustaches(statement);
+            if (resolvedCustom)
+                return resolvedCustom;
+            var resolvedPath = exports.resolveExpression(statement.path);
+            // If there are params output a call expression with resolved params
+            if (statement.params.length) {
+                var resolvedParams = statement.params.map(function (p) { return exports.resolveExpression(p); });
+                return Babel.callExpression(resolvedPath, resolvedParams);
+            }
+            return resolvedPath;
         }
         case 'BlockStatement': {
+            // Handle Custom Mustaches
+            var resolvedCustom = handleCustomMustaches(statement);
+            if (resolvedCustom)
+                return resolvedCustom;
             return blockStatements_1.resolveBlockStatement(statement);
         }
         case 'MustacheCommentStatement':
@@ -31,6 +45,121 @@ exports.resolveStatement = function (statement) {
             throw new Error("Unexpected expression \"" + statement.type + "\"");
         }
     }
+};
+var getParamValue = function (thing, idx) { return (thing.params[idx] && thing.params[idx].value); };
+// TODO this is crappy - can it be replaced with something built in?
+var resolveJsxAttribute = function (expression) {
+    var resolvedExpression = exports.resolveExpression(expression);
+    switch (resolvedExpression.type) {
+        case "MemberExpression": {
+            return Babel.jsxExpressionContainer(resolvedExpression);
+        }
+        default: {
+            return resolvedExpression;
+        }
+    }
+};
+// TODO this is crappy - can it be replaced with something built in?
+var resolveJsxElement = function (expression) {
+    var resolvedExpression = exports.resolveExpression(expression);
+    switch (resolvedExpression.type) {
+        case "MemberExpression": {
+            return Babel.jsxExpressionContainer(resolvedExpression);
+        }
+        case "StringLiteral": {
+            return Babel.jsxText(resolvedExpression.value);
+        }
+        default: {
+            return resolvedExpression;
+        }
+    }
+};
+/**
+ * Example:
+ *
+ * HBS in
+ * {{#linkTo '/destination' '' 'btn' '' }}
+ *   <i class='zp-icon zp-icon-arrow-back'></i> Back to Giving
+ * {{/linkTo}}
+ *
+ * React out
+ * <Link href='/destination' className='btn'>
+ *   <i class='zp-icon zp-icon-arrow-back'></i> Back to Giving
+ * </Link>
+ */
+var hbsToJsxMap = {
+    buttonWithIcon: {
+        identifier: 'Button',
+        paramMappings: [
+            { type: 'children' },
+            { type: 'attribute', identifier: 'icon', preprocessor: function (p) { p.value = p.value.replace(/zp-icon-? ?/g, ''); } },
+            { type: 'attribute', identifier: 'className' },
+        ]
+    },
+    linkTo: {
+        identifier: 'Link',
+        paramMappings: [
+            { type: 'attribute', identifier: 'href' },
+            { type: 'children' },
+            { type: 'attribute', identifier: 'className' },
+        ]
+    },
+    externalLinkTo: {
+        identifier: 'LinkExternal',
+        paramMappings: [
+            { type: 'attribute', identifier: 'href' },
+            { type: 'children' },
+            { type: 'attribute', identifier: 'className' },
+        ]
+    }
+};
+var handleCustomMustaches = function (statement) {
+    var hbsIdentifier = statement.path && statement.path.original;
+    var hbsTranslation = hbsToJsxMap[hbsIdentifier];
+    if (!hbsTranslation)
+        return undefined;
+    var params = statement.params;
+    var children;
+    var attributes = [];
+    hbsTranslation.paramMappings.forEach(function (param, i) {
+        switch (param.type) {
+            case 'children': {
+                if (params[i]) {
+                    children = [resolveJsxElement(params[i])];
+                }
+                break;
+            }
+            case 'attribute': {
+                if (params[i]) {
+                    if (param.preprocessor)
+                        param.preprocessor(params[i]);
+                    var resolvedValue = resolveJsxAttribute(params[i]);
+                    attributes.push(Babel.jsxAttribute(Babel.jsxIdentifier(param.identifier), resolvedValue));
+                }
+                break;
+            }
+        }
+    });
+    // if there's a block body it becomes the children
+    if (statement.type === 'BlockStatement' && statement.program) {
+        children = exports.createChildren(statement.program.body);
+        children = children.map(function (child) {
+            switch (child.type) {
+                case 'StringLiteral': {
+                    return Babel.jsxText(child.value);
+                }
+                case 'MemberExpression':
+                case 'CallExpression': {
+                    return Babel.jsxExpressionContainer(child);
+                }
+                default: {
+                    return child;
+                }
+            }
+        });
+    }
+    var identifier = Babel.jsxIdentifier(hbsTranslation.identifier);
+    return Babel.jsxElement(Babel.jsxOpeningElement(identifier, attributes, false), Babel.jsxClosingElement(identifier), children, false);
 };
 /**
  * Converts the Handlebars node to JSX-children-compatible child element.
@@ -51,7 +180,18 @@ exports.resolveElementChild = function (statement) {
         }
         // If it expression, create a expression container
         default: {
-            return Babel.jsxExpressionContainer(exports.resolveStatement(statement));
+            var resolved = exports.resolveStatement(statement);
+            switch (resolved.type) {
+                // Return if it is resolved to JSX
+                case 'JSXText':
+                case 'JSXElement':
+                case 'JSXExpressionContainer': {
+                    return resolved;
+                }
+                default: {
+                    return Babel.jsxExpressionContainer(resolved);
+                }
+            }
         }
     }
 };
